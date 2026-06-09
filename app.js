@@ -542,8 +542,8 @@
           await state.scanner.start(
             {
               deviceId: { exact: state.cameras[0].id },
-              width: { ideal: 800, max: 1024 },
-              height: { ideal: 600, max: 768 }
+              width: { ideal: 640 },
+              height: { ideal: 480 }
             },
             config,
             onScanSuccess,
@@ -586,8 +586,8 @@
       await state.scanner.start(
         { 
           facingMode: { exact: 'environment' },
-          width: { ideal: 800, max: 1024 },
-          height: { ideal: 600, max: 768 }
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         },
         config, onScanSuccess, () => {}
       );
@@ -601,8 +601,8 @@
       await state.scanner.start(
         { 
           facingMode: 'environment',
-          width: { ideal: 800, max: 1024 },
-          height: { ideal: 600, max: 768 }
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         },
         config, onScanSuccess, () => {}
       );
@@ -681,8 +681,8 @@
       await state.scanner.start(
         {
           deviceId: { exact: nextCamera.id },
-          width: { ideal: 800, max: 1024 },
-          height: { ideal: 600, max: 768 }
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         },
         config,
         onScanSuccess,
