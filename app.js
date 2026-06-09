@@ -10,6 +10,7 @@
   // ============================================
   // CONFIGURATION & STATE
   // ============================================
+  const APP_VERSION = 'v1.3.0';
   const APP_PASSWORD = 'IFMSAFAPI123';
   const STORAGE_KEYS = {
     scriptUrl: 'eventcheck_script_url',
@@ -113,7 +114,8 @@
 
     // Loading
     loadingOverlay: $('#loading-overlay'),
-    loadingText: $('#loading-text')
+    loadingText: $('#loading-text'),
+    appVersion: $('#app-version')
   };
 
   // ============================================
@@ -123,6 +125,11 @@
     loadConfig();
     bindEvents();
     registerServiceWorker();
+
+    // Set app version text
+    if (dom.appVersion) {
+      dom.appVersion.textContent = APP_VERSION;
+    }
 
     // Handle Enter key on password input
     dom.passwordInput.addEventListener('keydown', (e) => {
@@ -495,16 +502,60 @@
 
       state.scanner = new Html5Qrcode('scanner-view');
 
+      // Request permission silently beforehand to populate camera labels immediately
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.warn('Erro ao pré-solicitar câmera traseira, tentando padrão:', err);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stream.getTracks().forEach(track => track.stop());
+        } catch (err2) {
+          console.warn('Erro ao pré-solicitar câmera padrão:', err2);
+        }
+      }
+
       // Detect and list all available cameras
       let hasLabels = false;
       try {
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length > 0) {
           hasLabels = devices.some(d => d.label);
-          // Prioritize rear cameras to find the correct focus lenses
-          const backCams = devices.filter(d => d.label && /back|rear|trás|environment/i.test(d.label));
-          const frontCams = devices.filter(d => !d.label || !/back|rear|trás|environment/i.test(d.label));
-          state.cameras = [...backCams, ...frontCams];
+          
+          let backCams = [];
+          let frontCams = [];
+
+          devices.forEach(d => {
+            const label = (d.label || '').toLowerCase();
+            const isFront = /front|user|frontal|selfie|face|interna|internal|webcam/i.test(label);
+            const isBack = /back|rear|trás|traseira|environment/i.test(label);
+            
+            if (label) {
+              if (isBack && !isFront) {
+                backCams.push(d);
+              } else if (isFront && !isBack) {
+                frontCams.push(d);
+              } else {
+                // If it has a label but matches neither, treat as rear/back
+                backCams.push(d);
+              }
+            } else {
+              // No label (fallback should not happen after warmup, but keep for safety)
+              backCams.push(d);
+            }
+          });
+
+          // Use rear cameras if found, otherwise fall back to front cameras (like webcams)
+          if (backCams.length > 0) {
+            state.cameras = backCams;
+          } else if (frontCams.length > 0) {
+            state.cameras = frontCams;
+          } else {
+            state.cameras = devices;
+          }
         } else {
           state.cameras = [];
         }
@@ -520,7 +571,6 @@
         dom.switchCameraBtn.classList.add('hidden');
       }
 
-      // Scanner configuration with a dynamic qrbox size (70% of video dimensions)
       // Scanner configuration with a dynamic qrbox size (70% of video dimensions)
       const config = {
         fps: 15,
@@ -582,18 +632,26 @@
 
   // Tries multiple standard facingMode constraint strategies with resolution constraints optimized for decoding speed
   async function _startCameraWithFallback(config) {
-    // Strategy 1: Optimized resolution constraints on exact environment camera
-    try {
-      await state.scanner.start(
-        { facingMode: { exact: 'environment' } },
-        config, onScanSuccess, () => {}
-      );
-      return true;
-    } catch (e1) {
-      console.warn('Camera strategy 1 failed:', e1.message || e1);
+    // Strategy 1: Try starting using state.cameras list IDs sequentially
+    if (state.cameras && state.cameras.length > 0) {
+      for (let i = 0; i < state.cameras.length; i++) {
+        try {
+          console.log(`Fallback: tentando iniciar câmera ${i} (${state.cameras[i].label || 'sem label'}): ${state.cameras[i].id}`);
+          await state.scanner.start(
+            state.cameras[i].id,
+            config,
+            onScanSuccess,
+            () => {}
+          );
+          state.currentCameraIndex = i;
+          return true;
+        } catch (err) {
+          console.warn(`Falha ao iniciar câmera fallback ${i}:`, err.message || err);
+        }
+      }
     }
 
-    // Strategy 2: Optimized resolution constraints on standard environment camera
+    // Strategy 2: Try standard environment facingMode
     try {
       await state.scanner.start(
         { facingMode: 'environment' },
@@ -601,45 +659,18 @@
       );
       return true;
     } catch (e2) {
-      console.warn('Camera strategy 2 failed:', e2.message || e2);
+      console.warn('Camera strategy facingMode: environment failed:', e2.message || e2);
     }
 
-    // Strategy 3: Standard camera constraints (browser defaults)
-    try {
-      await state.scanner.start(
-        { facingMode: 'environment' },
-        config, onScanSuccess, () => {}
-      );
-      return true;
-    } catch (e3) {
-      console.warn('Camera strategy 3 failed:', e3.message || e3);
-    }
-
-    // Strategy 4: Fallback to front camera (user facingMode) for laptops/desktops
+    // Strategy 3: Try user facingMode (only as absolute last resort, e.g. laptop webcam)
     try {
       await state.scanner.start(
         { facingMode: 'user' },
         config, onScanSuccess, () => {}
       );
       return true;
-    } catch (e4) {
-      console.warn('Camera strategy 4 failed:', e4.message || e4);
-    }
-
-    // Strategy 5: Enumerate and start first camera by ID
-    try {
-      const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length > 0) {
-        await state.scanner.start(
-          devices[0].id,
-          config,
-          onScanSuccess,
-          () => {}
-        );
-        return true;
-      }
-    } catch (e5) {
-      console.warn('Camera strategy 5 failed:', e5.message || e5);
+    } catch (e3) {
+      console.warn('Camera strategy facingMode: user failed:', e3.message || e3);
     }
 
     return false;
