@@ -527,7 +527,7 @@
           const size = Math.min(width, height) * 0.70;
           return { width: Math.floor(size), height: Math.floor(size) };
         },
-        disableFlip: false,
+        disableFlip: true, // Desativa espelhamento para poupar CPU
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
         }
@@ -540,7 +540,11 @@
       if (state.cameras.length > 0 && hasLabels) {
         try {
           await state.scanner.start(
-            state.cameras[0].id,
+            {
+              deviceId: { exact: state.cameras[0].id },
+              width: { ideal: 800, max: 1024 },
+              height: { ideal: 600, max: 768 }
+            },
             config,
             onScanSuccess,
             () => {}
@@ -575,15 +579,15 @@
     }
   }
 
-  // Tries multiple standard facingMode constraint strategies with high-definition resolution constraints
+  // Tries multiple standard facingMode constraint strategies with resolution constraints optimized for decoding speed
   async function _startCameraWithFallback(config) {
-    // Strategy 1: HD resolution constraints on exact environment camera
+    // Strategy 1: Optimized resolution constraints on exact environment camera
     try {
       await state.scanner.start(
         { 
           facingMode: { exact: 'environment' },
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 }
+          width: { ideal: 800, max: 1024 },
+          height: { ideal: 600, max: 768 }
         },
         config, onScanSuccess, () => {}
       );
@@ -592,13 +596,13 @@
       console.warn('Camera strategy 1 failed:', e1.message || e1);
     }
 
-    // Strategy 2: HD resolution constraints on standard environment camera
+    // Strategy 2: Optimized resolution constraints on standard environment camera
     try {
       await state.scanner.start(
         { 
           facingMode: 'environment',
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 }
+          width: { ideal: 800, max: 1024 },
+          height: { ideal: 600, max: 768 }
         },
         config, onScanSuccess, () => {}
       );
@@ -668,14 +672,18 @@
           const size = Math.min(width, height) * 0.70;
           return { width: Math.floor(size), height: Math.floor(size) };
         },
-        disableFlip: false,
+        disableFlip: true, // Desativa espelhamento para poupar CPU
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
         }
       };
 
       await state.scanner.start(
-        nextCamera.id,
+        {
+          deviceId: { exact: nextCamera.id },
+          width: { ideal: 800, max: 1024 },
+          height: { ideal: 600, max: 768 }
+        },
         config,
         onScanSuccess,
         () => {}
