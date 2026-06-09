@@ -381,6 +381,88 @@
   }
 
   // ============================================
+  // DASHBOARD
+  // ============================================
+  function updateDashboard(stats) {
+    if (!stats) return;
+
+    animateNumber(dom.statTotal, stats.total);
+    animateNumber(dom.statPresent, stats.present);
+    animateNumber(dom.statAbsent, stats.absent);
+    animateNumber(dom.statPercentage, stats.percentage, '%');
+  }
+
+  function animateNumber(element, target, suffix = '') {
+    const current = parseInt(element.textContent) || 0;
+    const diff = target - current;
+    const duration = 600;
+    const steps = 30;
+    const stepValue = diff / steps;
+    let step = 0;
+
+    if (diff === 0) {
+      element.textContent = target + suffix;
+      return;
+    }
+
+    const interval = setInterval(() => {
+      step++;
+      if (step >= steps) {
+        element.textContent = target + suffix;
+        clearInterval(interval);
+      } else {
+        element.textContent = Math.round(current + stepValue * step) + suffix;
+      }
+    }, duration / steps);
+  }
+
+  function updateRecentList() {
+    const presentParticipants = state.participants
+      .filter(p => p.status === 'present' && p.checkinDate)
+      .sort((a, b) => {
+        return parseDate(b.checkinDate) - parseDate(a.checkinDate);
+      })
+      .slice(0, 20);
+
+    if (presentParticipants.length === 0) {
+      dom.emptyRecent.classList.remove('hidden');
+      dom.recentCount.textContent = '0 hoje';
+      const items = dom.recentList.querySelectorAll('.recent-item');
+      items.forEach(item => item.remove());
+      return;
+    }
+
+    dom.emptyRecent.classList.add('hidden');
+    dom.recentCount.textContent = `${presentParticipants.length} registrados`;
+
+    const items = dom.recentList.querySelectorAll('.recent-item');
+    items.forEach(item => item.remove());
+
+    presentParticipants.forEach((p, index) => {
+      const item = document.createElement('div');
+      item.className = 'recent-item';
+      item.style.animationDelay = `${index * 0.05}s`;
+      item.innerHTML = `
+        <div class="check-icon">✅</div>
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(p.name)}</div>
+          <div class="item-time">${p.checkinDate || 'Horário não registrado'}</div>
+        </div>
+      `;
+      dom.recentList.appendChild(item);
+    });
+  }
+
+  function parseDate(dateStr) {
+    if (!dateStr) return 0;
+    const parts = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}):(\d{2}):?(\d{2})?/);
+    if (parts) {
+      return new Date(parts[3], parts[2] - 1, parts[1], parts[4], parts[5], parts[6] || 0).getTime();
+    }
+    return 0;
+  }
+
+  // ============================================
   // BACKGROUND AUTO-REFRESH TIMER
   // ============================================
   function startAutoRefresh() {
