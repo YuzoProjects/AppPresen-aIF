@@ -280,6 +280,11 @@
         section.style.animation = '';
       }
     });
+
+    // AUTO-LOAD QR CARDS ON TAB NAVIGATION
+    if (sectionName === 'qrcodes' && state.participants.length > 0) {
+      generateQRCards(state.participants);
+    }
   }
 
   // Helper to calculate statistics
@@ -433,6 +438,12 @@
         updateConnectionStatus(state.scriptUrl !== 'demo');
         updateRecentList();
         
+        // Auto-refresh QR Cards if we are currently looking at the QR Codes tab
+        const activeNav = $('.nav-item.active');
+        if (activeNav && activeNav.dataset.section === 'qrcodes') {
+          generateQRCards(state.participants);
+        }
+
         if (state.scriptUrl !== 'demo') {
           showToast('Dados atualizados com sucesso', 'success');
         }
@@ -774,54 +785,6 @@
     setTimeout(() => {
       state.scanCooldown = false;
     }, 2500);
-  }
-
-  function showScanResult(type, icon, name, message) {
-    dom.scanResult.className = `scan-result visible ${type}`;
-    dom.resultIcon.textContent = icon;
-    dom.resultName.textContent = name;
-    dom.resultMessage.textContent = message;
-
-    clearTimeout(state.resultTimeout);
-    state.resultTimeout = setTimeout(() => {
-      dom.scanResult.classList.remove('visible');
-    }, 4000);
-  }
-
-  function addToRecentCheckins(name) {
-    const checkin = {
-      name: name,
-      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    state.recentCheckins.unshift(checkin);
-    if (state.recentCheckins.length > 50) {
-      state.recentCheckins = state.recentCheckins.slice(0, 50);
-    }
-
-    localStorage.setItem(STORAGE_KEYS.recentCheckins, JSON.stringify(state.recentCheckins));
-
-    refreshData();
-  }
-
-  async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    try {
-      const result = await Html5Qrcode.scanFile(file, true);
-
-      if (result) {
-        await onScanSuccess(result);
-      } else {
-        showToast('QR Code não encontrado na imagem', 'error');
-      }
-    } catch (err) {
-      console.error('File scan error:', err);
-      showToast('Não foi possível ler o QR Code da imagem', 'error');
-    }
-
-    event.target.value = '';
   }
 
   // ============================================
