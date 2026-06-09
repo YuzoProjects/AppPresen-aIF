@@ -496,12 +496,14 @@
       state.scanner = new Html5Qrcode('scanner-view');
 
       // Detect and list all available cameras
+      let hasLabels = false;
       try {
         const devices = await Html5Qrcode.getCameras();
         if (devices && devices.length > 0) {
+          hasLabels = devices.some(d => d.label);
           // Prioritize rear cameras to find the correct focus lenses
-          const backCams = devices.filter(d => /back|rear|trás|environment/i.test(d.label));
-          const frontCams = devices.filter(d => !/back|rear|trás|environment/i.test(d.label));
+          const backCams = devices.filter(d => d.label && /back|rear|trás|environment/i.test(d.label));
+          const frontCams = devices.filter(d => !d.label || !/back|rear|trás|environment/i.test(d.label));
           state.cameras = [...backCams, ...frontCams];
         } else {
           state.cameras = [];
@@ -525,14 +527,17 @@
           const size = Math.min(width, height) * 0.70;
           return { width: Math.floor(size), height: Math.floor(size) };
         },
-        disableFlip: false
+        disableFlip: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
+        }
       };
 
       state.currentCameraIndex = 0;
       let started = false;
 
-      // Try starting with the first prioritized camera
-      if (state.cameras.length > 0) {
+      // Try starting with the first prioritized camera only if we have labels
+      if (state.cameras.length > 0 && hasLabels) {
         try {
           await state.scanner.start(
             state.cameras[0].id,
@@ -636,7 +641,10 @@
           const size = Math.min(width, height) * 0.70;
           return { width: Math.floor(size), height: Math.floor(size) };
         },
-        disableFlip: false
+        disableFlip: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
+        }
       };
 
       await state.scanner.start(
