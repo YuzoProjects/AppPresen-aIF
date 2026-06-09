@@ -618,6 +618,33 @@
       console.warn('Camera strategy 3 failed:', e3.message || e3);
     }
 
+    // Strategy 4: Fallback to any default camera (no facingMode constraints, works on laptops/webcams)
+    try {
+      await state.scanner.start(
+        {},
+        config, onScanSuccess, () => {}
+      );
+      return true;
+    } catch (e4) {
+      console.warn('Camera strategy 4 failed:', e4.message || e4);
+    }
+
+    // Strategy 5: Enumerate and start first camera by ID
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (devices && devices.length > 0) {
+        await state.scanner.start(
+          devices[0].id,
+          config,
+          onScanSuccess,
+          () => {}
+        );
+        return true;
+      }
+    } catch (e5) {
+      console.warn('Camera strategy 5 failed:', e5.message || e5);
+    }
+
     return false;
   }
 
