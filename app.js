@@ -10,7 +10,7 @@
   // ============================================
   // CONFIGURATION & STATE
   // ============================================
-  const APP_VERSION = 'v1.3.1';
+  const APP_VERSION = 'v1.3.2';
   const APP_PASSWORD = 'IFMSAFAPI123';
   const STORAGE_KEYS = {
     scriptUrl: 'eventcheck_script_url',
@@ -115,7 +115,10 @@
     // Loading
     loadingOverlay: $('#loading-overlay'),
     loadingText: $('#loading-text'),
-    appVersion: $('#app-version')
+    appVersion: $('#app-version'),
+    manualSearchInput: $('#manual-search-input'),
+    manualSearchResults: $('#manual-search-results'),
+    refreshTimer: $('#auto-refresh-timer')
   };
 
   // ============================================
@@ -189,6 +192,9 @@
     dom.switchCameraBtn.addEventListener('click', switchCamera);
     dom.stopScanBtn.addEventListener('click', stopScanner);
     dom.qrFileInput.addEventListener('change', handleFileUpload);
+    if (dom.manualSearchInput) {
+      dom.manualSearchInput.addEventListener('input', handleManualSearch);
+    }
 
     // QR Codes
     dom.loadQrBtn.addEventListener('click', loadAndGenerateQRCodes);
@@ -472,21 +478,52 @@
   // ============================================
   // BACKGROUND AUTO-REFRESH TIMER
   // ============================================
+  let refreshTimerInterval = null;
+  let secondsRemaining = 8;
+
   function startAutoRefresh() {
     stopAutoRefresh();
-    // Auto-refresh every 8 seconds to synchronize PCs and scanning phones in real-time
-    autoRefreshInterval = setInterval(() => {
-      // Only auto-sync if logged in, tab is visible, camera isn't active, and a scriptUrl is set
-      if (state.isAuthenticated && !state.isScanning && state.scriptUrl && document.visibilityState === 'visible') {
-        refreshData(true); // Silent refresh
+    secondsRemaining = 8;
+    updateRefreshTimerUI();
+
+    refreshTimerInterval = setInterval(() => {
+      if (state.isAuthenticated && document.visibilityState === 'visible') {
+        if (state.isScanning) {
+          dom.refreshTimer.textContent = ' (Scanner ativo)';
+          return;
+        }
+
+        secondsRemaining--;
+        if (secondsRemaining <= 0) {
+          dom.refreshTimer.textContent = ' (Sincronizando...)';
+          refreshData(true);
+          secondsRemaining = 8;
+        } else {
+          updateRefreshTimerUI();
+        }
+      } else {
+        dom.refreshTimer.textContent = '';
       }
-    }, 8000);
+    }, 1000);
   }
 
   function stopAutoRefresh() {
-    if (autoRefreshInterval) {
-      clearInterval(autoRefreshInterval);
-      autoRefreshInterval = null;
+    if (refreshTimerInterval) {
+      clearInterval(refreshTimerInterval);
+      refreshTimerInterval = null;
+    }
+    if (dom.refreshTimer) {
+      dom.refreshTimer.textContent = '';
+    }
+  }
+
+  function updateRefreshTimerUI() {
+    if (dom.refreshTimer) {
+      if (state.scriptUrl) {
+        dom.refreshTimer.textContent = ` (Auto-sync em ${secondsRemaining}s)`;
+      } else {
+        dom.refreshTimer.textContent = '';
+      }
     }
   }
 
@@ -951,6 +988,66 @@
       const matches = name.includes(query) || email.includes(query);
       card.style.display = matches ? '' : 'none';
     });
+  }
+
+  // Handle manual check-in search results
+  function handleManualSearch() {
+    if (!dom.manualSearchInput || !dom.manualSearchResults) return;
+    
+    const query = dom.manualSearchInput.value.toLowerCase().trim();
+    if (!query) {
+      dom.manualSearchResults.classList.add('hidden');
+      dom.manualSearchResults.innerHTML = '';
+      return;
+    }
+
+    // Filter participants locally
+    const matches = state.participants.filter(p => 
+      p.name.toLowerCase().includes(query) || 
+      (p.email && p.email.toLowerCase().includes(query))
+    ).slice(0, 15);
+
+    if (matches.length === 0) {
+      dom.manualSearchResults.innerHTML = '<div style="padding: 10px; text-align: center; font-size: 0.8rem; color: var(--text-secondary);">Nenhum participante encontrado</div>';
+      dom.manualSearchResults.classList.remove('hidden');
+      return;
+    }
+
+    dom.manualSearchResults.innerHTML = '';
+    matches.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'manual-search-item';
+      
+      const statusText = p.status === 'present' ? 'Confirmado' : 'Registrar';
+      const statusClass = p.status === 'present' ? 'present' : 'absent';
+      
+      item.innerHTML = `
+        <div class="item-info">
+          <span class="item-name">${escapeHtml(p.name)}</span>
+          <span class="item-email">${escapeHtml(p.email || 'Sem e-mail')}</span>
+        </div>
+        <span class="item-status ${statusClass}">${statusText}</span>
+      `;
+      
+      item.addEventListener('click', () => {
+        if (p.status === 'present') {
+          showToast(`${p.name} já tem presença confirmada.`, 'warning');
+          return;
+        }
+        
+        // Trigger check-in via normal scanSuccess method
+        onScanSuccess(p.id);
+        
+        // Clear search input and results
+        dom.manualSearchInput.value = '';
+        dom.manualSearchResults.classList.add('hidden');
+        dom.manualSearchResults.innerHTML = '';
+      });
+      
+      dom.manualSearchResults.appendChild(item);
+    });
+    
+    dom.manualSearchResults.classList.remove('hidden');
   }
 
   // ============================================

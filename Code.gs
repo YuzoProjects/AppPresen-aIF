@@ -91,7 +91,7 @@ function doPost(e) {
  */
 function handleList() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = sheet.getDataRange().getValues();
+  var data = sheet.getDataRange().getDisplayValues();
   
   if (data.length <= 1) {
     return jsonResponse({ 
@@ -152,7 +152,7 @@ function handleList() {
  */
 function handleStats() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = sheet.getDataRange().getValues();
+  var data = sheet.getDataRange().getDisplayValues();
   
   var total = 0;
   var present = 0;
@@ -187,7 +187,7 @@ function handleCheckin(participantId) {
   }
   
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = sheet.getDataRange().getValues();
+  var data = sheet.getDataRange().getDisplayValues();
   
   for (var i = 1; i < data.length; i++) {
     var rowId = (data[i][3] || '').toString().trim();
@@ -211,7 +211,7 @@ function handleCheckin(participantId) {
       var formattedDate = Utilities.formatDate(now, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
       
       sheet.getRange(i + 1, 5).setValue('✅ Presente');  // Coluna E
-      sheet.getRange(i + 1, 6).setValue(formattedDate);    // Coluna F
+      sheet.getRange(i + 1, 6).setValue("'" + formattedDate);    // Coluna F
       
       return jsonResponse({ 
         status: 'success', 
@@ -232,7 +232,7 @@ function handleCheckin(participantId) {
  */
 function handleGenerateIds() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = sheet.getDataRange().getValues();
+  var data = sheet.getDataRange().getDisplayValues();
   var count = 0;
   
   // Verificar se a primeira linha tem cabeçalho na coluna D
