@@ -10,7 +10,7 @@
   // ============================================
   // CONFIGURATION & STATE
   // ============================================
-  const APP_VERSION = 'v1.3.0';
+  const APP_VERSION = 'v1.3.1';
   const APP_PASSWORD = 'IFMSAFAPI123';
   const STORAGE_KEYS = {
     scriptUrl: 'eventcheck_script_url',
@@ -518,13 +518,21 @@
         }
       }
 
-      // Detect and list all available cameras
+      // Detect and list all available cameras (with a retry if labels are missing)
+      let devices = [];
       let hasLabels = false;
       try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
+        devices = await Html5Qrcode.getCameras();
+        hasLabels = devices.some(d => d.label);
+        
+        if (!hasLabels && devices.length > 0) {
+          console.log('Labels não encontradas de primeira. Aguardando 200ms para tentar novamente...');
+          await new Promise(resolve => setTimeout(resolve, 200));
+          devices = await Html5Qrcode.getCameras();
           hasLabels = devices.some(d => d.label);
-          
+        }
+
+        if (devices && devices.length > 0) {
           let backCams = [];
           let frontCams = [];
 
@@ -579,10 +587,6 @@
           return { width: Math.floor(size), height: Math.floor(size) };
         },
         disableFlip: true, // Desativa espelhamento para poupar CPU
-        videoConstraints: {
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
         }
@@ -697,10 +701,6 @@
           return { width: Math.floor(size), height: Math.floor(size) };
         },
         disableFlip: true, // Desativa espelhamento para poupar CPU
-        videoConstraints: {
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
         }
@@ -923,8 +923,8 @@
       try {
         new QRCode(qrDiv, {
           text: participant.id,
-          width: 140,
-          height: 140,
+          width: 300,
+          height: 300,
           colorDark: '#0a1628',
           colorLight: '#ffffff',
           correctLevel: QRCode.CorrectLevel.M
@@ -964,8 +964,8 @@
     try {
       new QRCode(dom.modalQrContainer, {
         text: participant.id,
-        width: 250,
-        height: 250,
+        width: 600,
+        height: 600,
         colorDark: '#0a1628',
         colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.H

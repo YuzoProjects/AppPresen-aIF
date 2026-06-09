@@ -1320,8 +1320,13 @@ input, button, textarea, select {
   display: inline-block;
 }
 
-.modal-qr canvas {
+.modal-qr canvas,
+.modal-qr img {
   display: block;
+  max-width: 250px !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 auto;
 }
 
 .modal-actions {
