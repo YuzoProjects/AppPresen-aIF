@@ -521,6 +521,7 @@
       }
 
       // Scanner configuration with a dynamic qrbox size (70% of video dimensions)
+      // Scanner configuration with a dynamic qrbox size (70% of video dimensions)
       const config = {
         fps: 15,
         qrbox: function(width, height) {
@@ -528,6 +529,10 @@
           return { width: Math.floor(size), height: Math.floor(size) };
         },
         disableFlip: true, // Desativa espelhamento para poupar CPU
+        videoConstraints: {
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
         }
@@ -540,11 +545,7 @@
       if (state.cameras.length > 0 && hasLabels) {
         try {
           await state.scanner.start(
-            {
-              deviceId: { exact: state.cameras[0].id },
-              width: { ideal: 640 },
-              height: { ideal: 480 }
-            },
+            state.cameras[0].id,
             config,
             onScanSuccess,
             () => {}
@@ -584,11 +585,7 @@
     // Strategy 1: Optimized resolution constraints on exact environment camera
     try {
       await state.scanner.start(
-        { 
-          facingMode: { exact: 'environment' },
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
+        { facingMode: { exact: 'environment' } },
         config, onScanSuccess, () => {}
       );
       return true;
@@ -599,11 +596,7 @@
     // Strategy 2: Optimized resolution constraints on standard environment camera
     try {
       await state.scanner.start(
-        { 
-          facingMode: 'environment',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
+        { facingMode: 'environment' },
         config, onScanSuccess, () => {}
       );
       return true;
@@ -622,10 +615,10 @@
       console.warn('Camera strategy 3 failed:', e3.message || e3);
     }
 
-    // Strategy 4: Fallback to any default camera (no facingMode constraints, works on laptops/webcams)
+    // Strategy 4: Fallback to front camera (user facingMode) for laptops/desktops
     try {
       await state.scanner.start(
-        {},
+        { facingMode: 'user' },
         config, onScanSuccess, () => {}
       );
       return true;
@@ -673,17 +666,17 @@
           return { width: Math.floor(size), height: Math.floor(size) };
         },
         disableFlip: true, // Desativa espelhamento para poupar CPU
+        videoConstraints: {
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: false // Desativado para evitar travamento em Samsung
         }
       };
 
       await state.scanner.start(
-        {
-          deviceId: { exact: nextCamera.id },
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
+        nextCamera.id,
         config,
         onScanSuccess,
         () => {}
