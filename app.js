@@ -10,7 +10,7 @@
   // ============================================
   // CONFIGURATION & STATE
   // ============================================
-  const APP_VERSION = 'v1.3.2';
+  const APP_VERSION = 'v1.3.3';
   const APP_PASSWORD = 'IFMSAFAPI123';
   const STORAGE_KEYS = {
     scriptUrl: 'eventcheck_script_url',
@@ -1080,19 +1080,61 @@
   }
 
   function downloadModalQR() {
-    const canvas = dom.modalQrContainer.querySelector('canvas');
-    if (!canvas) {
+    const originalCanvas = dom.modalQrContainer.querySelector('canvas');
+    if (!originalCanvas) {
       showToast('QR Code não disponível', 'error');
       return;
     }
 
     const name = dom.qrModal.dataset.participantName || 'qrcode';
+    const email = dom.modalEmail.textContent || '';
+    
+    // Original dimensions of the generated QR Code (ex: 600x600)
+    const qrWidth = originalCanvas.width;
+    const qrHeight = originalCanvas.height;
+
+    // Define border margins and footer height dynamically
+    const padding = Math.round(qrWidth * 0.08); // Contrast border (~8% of QR size, ex: 48px)
+    const footerHeight = Math.round(qrWidth * 0.18); // Area height for participant info (ex: 108px)
+    
+    // Create high-resolution temporary canvas for drawing the download image
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = qrWidth + (padding * 2);
+    exportCanvas.height = qrHeight + (padding * 2) + footerHeight;
+    const ctx = exportCanvas.getContext('2d');
+
+    // 1. Draw solid white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+    // 2. Draw the QR Code image on top, centered
+    ctx.drawImage(originalCanvas, padding, padding, qrWidth, qrHeight);
+
+    // 3. Draw participant identification text below the QR Code
+    ctx.fillStyle = '#0a1628'; // Primary theme dark blue
+    ctx.textAlign = 'center';
+    
+    // Participant Name (bold)
+    const fontSizeName = Math.round(qrWidth * 0.045); // Font size proportional (ex: 27px)
+    ctx.font = `bold ${fontSizeName}px Outfit, Inter, sans-serif`;
+    const textY = qrHeight + padding + Math.round(footerHeight * 0.4);
+    ctx.fillText(name, exportCanvas.width / 2, textY);
+
+    // Participant Email/Institution (smaller text, secondary color)
+    if (email) {
+      const fontSizeEmail = Math.round(qrWidth * 0.032); // ex: 19px
+      ctx.font = `${fontSizeEmail}px Outfit, Inter, sans-serif`;
+      ctx.fillStyle = '#64748b'; // Gray text
+      ctx.fillText(email, exportCanvas.width / 2, textY + Math.round(fontSizeName * 0.95));
+    }
+
+    // 4. Download processed image
     const link = document.createElement('a');
     link.download = `QR_${name.replace(/\s+/g, '_')}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = exportCanvas.toDataURL('image/png');
     link.click();
 
-    showToast('QR Code baixado com sucesso', 'success');
+    showToast('QR Code com identificação baixado!', 'success');
   }
 
   // ============================================
